@@ -8,7 +8,7 @@ export default function Home() {
   const [sortOption, setSortOption] = useState("title-asc");
 
   function getSortedBooks() {
-    const sorted = [...books]; // copy array
+    const sorted = [...books];
 
     switch (sortOption) {
       case "title-asc":
@@ -92,7 +92,8 @@ export default function Home() {
   async function loadBooks() {
     const res = await fetch("/api/books");
     const data = await res.json();
-    setBooks(data);
+    const normalized = data.map((b) => ({ ...b, _id: b._id || b.id }));
+    setBooks(normalized);
   }
 
   useEffect(() => {
@@ -156,7 +157,6 @@ export default function Home() {
     }
 
     const res = await fetch("/api/books", {
-      // ✅ fixed URL
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -198,14 +198,21 @@ export default function Home() {
       alert("🚫 You must be logged in to perform this action.");
       return;
     }
-    const res = await fetch(`/api/books/${id}?action=${action}`, {
+
+    const options = {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: body ? JSON.stringify(body) : undefined,
-    });
+    };
+
+    if (body) {
+      options.body = JSON.stringify(body);
+    }
+
+    const res = await fetch(`/api/books/${id}?action=${action}`, options);
+
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       alert(data.message || "❌ Action failed");
@@ -219,12 +226,17 @@ export default function Home() {
   async function editBookSubmit(e) {
     e.preventDefault();
     if (!token) {
-      alert("🚫 You must be logged in to edit a book.");
+      alert("Unauthorized: missing token");
+      return;
+    }
+    if (!editForm._id && !editForm.id) {
+      alert("Missing _id for edit");
       return;
     }
 
-    const res = await fetch(`/api/books/${editForm._id}`, {
-      // ✅ use editForm._id
+    const id = editForm._id || editForm.id;
+
+    const res = await fetch(`/api/books/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -238,15 +250,15 @@ export default function Home() {
       }),
     });
 
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const data = await res.json();
-      alert(data.message || "❌ Failed to edit book");
+      alert(data.message || `Failed to edit (status ${res.status})`);
       return;
     }
 
-    alert("✅ Book edited successfully!");
     setShowEdit(false);
     setEditForm({
+      _id: "",
       title: "",
       author: "",
       genre: "",
@@ -260,6 +272,11 @@ export default function Home() {
     loadBooks();
   }
 
+  function openEditModal(book) {
+    setEditForm({ ...book, _id: book._id || book.id }); // ✅ ensure _id
+    setShowEdit(true);
+  }
+
   // Delete Book
   async function deleteBook(id) {
     if (!token) {
@@ -267,23 +284,20 @@ export default function Home() {
       return;
     }
     if (!confirm("Are you sure you want to delete this book?")) return;
+
     const res = await fetch(`/api/books/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
+
     if (!res.ok) {
       const data = await res.json();
       alert(data.message || "❌ Failed to delete book");
       return;
     }
+
     alert("✅ Book deleted successfully!");
     loadBooks();
-  }
-
-  // Open edit modal
-  function openEditModal(book) {
-    setEditForm(book);
-    setShowEdit(true);
   }
 
   return (
@@ -388,7 +402,7 @@ export default function Home() {
             <ul className="space-y-6">
               {getSortedBooks().map(
                 (
-                  book // ✅ invoke the function
+                  book 
                 ) => (
                   <li key={book._id} className="bg-white/10 p-4 rounded shadow">
                     <div className="flex flex-col md:flex-row gap-4 items-start">
@@ -447,10 +461,16 @@ export default function Home() {
                             Edit
                           </button>
                           <button
-                            className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition"
+                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
                             onClick={() => {
-                              setEditForm(book);
-                              setShowDelete(true);
+                              const id = editForm._id || editForm.id;
+                              if (!id) {
+                                alert("Missing _id for delete");
+                                return;
+                              }
+                              deleteBook(id);
+                              setShowDelete(false);
+                              setEditForm({});
                             }}
                           >
                             Delete
