@@ -1,22 +1,39 @@
-import { NextResponse } from 'next/server';
-import { connectDB } from '@/lib/db';
-import Book from '@/models/Book';
-import { verifyToken } from '@/lib/auth';
+import { NextResponse } from "next/server";
+import { connectDB } from "@/lib/db";
+import Book from "@/models/Book";
+import { verifyToken } from "@/lib/auth";
 
+// Helper: verify JWT
+async function auth(request) {
+  const authHeader = request.headers.get("authorization") || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  return token ? verifyToken(token) : null;
+}
+
+// GET → list all books
 export async function GET() {
   await connectDB();
-  const books = await Book.find().sort({ createdAt: -1 });
+  const books = await Book.find({});
   return NextResponse.json(books);
 }
 
+// POST → add a new book
 export async function POST(request) {
   await connectDB();
-  const auth = request.headers.get('authorization') || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-  const payload = token ? verifyToken(token) : null;
-  if (!payload) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  const payload = await auth(request);
+  if (!payload) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
 
-  const data = await request.json();
-  const book = await Book.create({ ...data, ownerId: payload.sub === 'admin' ? null : payload.sub });
-  return NextResponse.json(book, { status: 201 });
+  const body = await request.json();
+
+  try {
+    // Create and return the new book
+    const book = await Book.create(body);
+    return NextResponse.json(book, { status: 201 });
+  } catch (err) {
+    return NextResponse.json({ message: err.message }, { status: 400 });
+  }
 }
+
+
