@@ -10,14 +10,14 @@ async function auth(request) {
   return token ? verifyToken(token) : null;
 }
 
-// GET → list all books
+// GET list all books
 export async function GET() {
   await connectDB();
   const books = await Book.find({});
   return NextResponse.json(books);
 }
 
-// POST → add a new book
+// POST add a new book
 export async function POST(request) {
   await connectDB();
   const payload = await auth(request);
