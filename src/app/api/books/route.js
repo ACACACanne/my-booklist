@@ -8,7 +8,9 @@ import { requireAuth } from "@/lib/authMiddleware";
 export async function GET() {
   try {
     await connectDB();
-    const books = await Book.find().sort({ title: 1 });
+    const { user, error } = requireAuth(req);
+    if (error) return error;
+    const books = await Book.find({ userID: user.id }).sort({ title: 1 });
     return NextResponse.json(books);
   } catch (err) {
     return NextResponse.json({ message: err.message }, { status: 500 });
@@ -31,7 +33,10 @@ export async function POST(req) {
       body.publishedYear = parseInt(body.publishedYear);
     }
 
-    const book = await Book.create(body);
+    const book = await Book.create(body)({
+      ...body,
+      userID: userAgent.userID, // associate book with user
+    });
 
     return NextResponse.json(
       { message: "Book created", book },

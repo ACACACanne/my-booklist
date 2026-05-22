@@ -11,13 +11,7 @@ const bookSchema = new mongoose.Schema({
   summary: String,
   rating: { type: Number, default: 0 },
   read: { type: Boolean, default: false },
+  userID: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
 });
 
 export default mongoose.models.Book || mongoose.model("Book", bookSchema);
-
-
-
-
-
-
-
