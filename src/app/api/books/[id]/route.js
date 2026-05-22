@@ -98,16 +98,23 @@ export async function PATCH(req, { params }) {
 
 // DELETE book
 export async function DELETE(req, { params }) {
-  const { error } = requireAuth(req);
+  const { user, error } = requireAuth(req);
   if (error) return error;
 
   try {
     await connectDB();
 
-    const deleted = await Book.findByIdAndDelete(params.id);
-    if (!deleted) {
+    const book = await Book.findById(params.id);
+    if (!book) {
       return NextResponse.json({ message: "Book not found" }, { status: 404 });
     }
+
+    // ⭐ NEW: Ownership check
+    if (book.userId.toString() !== user.id) {
+      return NextResponse.json({ message: "Not authorized" }, { status: 403 });
+    }
+
+    await book.deleteOne();
 
     return NextResponse.json({ message: "Book deleted" });
   } catch (err) {
