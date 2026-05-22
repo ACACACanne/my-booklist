@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import Book from "@/models/Book";
 import { verifyToken } from "@/lib/auth";
+import { requireAuth } from "@/lib/authMiddleware";
 
 // GET single book
 export async function GET(req, { params }) {
@@ -13,27 +14,18 @@ export async function GET(req, { params }) {
     }
     return NextResponse.json(book);
   } catch (err) {
-    return NextResponse.json(
-      { message: "Server error", error: err.message },
-      { status: 500 },
-    );
+    return NextResponse.json({ message: err.message }, { status: 500 });
   }
 }
 
 // PUT update book
 export async function PUT(req, { params }) {
+  const { error } = requireAuth(req);
+  if (error) return error;
+
   try {
     await connectDB();
 
-    const token = req.headers.get("authorization")?.split(" ")[1];
-    if (!token)
-      return NextResponse.json({ message: "Missing token" }, { status: 401 });
-
-    const user = verifyToken(token);
-    if (!user)
-      return NextResponse.json({ message: "Invalid token" }, { status: 401 });
-
-    const { id } = params;
     const body = await req.json();
 
     if (body.publishedYear === "" || body.publishedYear === null) {
@@ -42,7 +34,7 @@ export async function PUT(req, { params }) {
       body.publishedYear = parseInt(body.publishedYear);
     }
 
-    const updated = await Book.findByIdAndUpdate(id, body, {
+    const updated = await Book.findByIdAndUpdate(params.id, body, {
       new: true,
       runValidators: true,
     });
@@ -51,38 +43,27 @@ export async function PUT(req, { params }) {
       return NextResponse.json({ message: "Book not found" }, { status: 404 });
     }
 
-    return NextResponse.json({
-      message: "Book updated successfully",
-      book: updated,
-    });
+    return NextResponse.json({ message: "Book updated", book: updated });
   } catch (err) {
-    return NextResponse.json(
-      { message: "Server error", error: err.message },
-      { status: 500 },
-    );
+    return NextResponse.json({ message: err.message }, { status: 500 });
   }
 }
 
 // PATCH rating / read toggle
 export async function PATCH(req, { params }) {
+  const { error } = requireAuth(req);
+  if (error) return error;
+
   try {
     await connectDB();
 
-    const token = req.headers.get("authorization")?.split(" ")[1];
-    if (!token)
-      return NextResponse.json({ message: "Missing token" }, { status: 401 });
-
-    const user = verifyToken(token);
-    if (!user)
-      return NextResponse.json({ message: "Invalid token" }, { status: 401 });
-
-    const { id } = params;
     const { searchParams } = new URL(req.url);
     const action = searchParams.get("action");
 
-    const book = await Book.findById(id);
-    if (!book)
+    const book = await Book.findById(params.id);
+    if (!book) {
       return NextResponse.json({ message: "Book not found" }, { status: 404 });
+    }
 
     if (action === "rating") {
       const body = await req.json();
@@ -90,7 +71,7 @@ export async function PATCH(req, { params }) {
 
       if (typeof rating !== "number" || rating < 1 || rating > 5) {
         return NextResponse.json(
-          { message: "Rating must be between 1 and 5" },
+          { message: "Rating must be 1–5" },
           { status: 400 },
         );
       }
@@ -111,36 +92,25 @@ export async function PATCH(req, { params }) {
 
     return NextResponse.json({ message: "Invalid action" }, { status: 400 });
   } catch (err) {
-    return NextResponse.json(
-      { message: "Server error", error: err.message },
-      { status: 500 },
-    );
+    return NextResponse.json({ message: err.message }, { status: 500 });
   }
 }
 
 // DELETE book
 export async function DELETE(req, { params }) {
+  const { error } = requireAuth(req);
+  if (error) return error;
+
   try {
     await connectDB();
-
-    const token = req.headers.get("authorization")?.split(" ")[1];
-    if (!token)
-      return NextResponse.json({ message: "Missing token" }, { status: 401 });
-
-    const user = verifyToken(token);
-    if (!user)
-      return NextResponse.json({ message: "Invalid token" }, { status: 401 });
 
     const deleted = await Book.findByIdAndDelete(params.id);
     if (!deleted) {
       return NextResponse.json({ message: "Book not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ message: "Book deleted successfully" });
+    return NextResponse.json({ message: "Book deleted" });
   } catch (err) {
-    return NextResponse.json(
-      { message: "Server error", error: err.message },
-      { status: 500 },
-    );
+    return NextResponse.json({ message: err.message }, { status: 500 });
   }
 }
