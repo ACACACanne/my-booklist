@@ -400,91 +400,81 @@ export default function Home() {
           <section className="mb-10 space-y-6">
             <h2 className="text-2xl font-semibold mb-4">📖 Your Books</h2>
             <ul className="space-y-6">
-              {getSortedBooks().map(
-                (
-                  book 
-                ) => (
-                  <li key={book._id} className="bg-white/10 p-4 rounded shadow">
-                    <div className="flex flex-col md:flex-row gap-4 items-start">
-                      <img
-                        src={book.coverImageUrl || "/default-cover.jpg"}
-                        alt={`Cover of ${book.title}`}
-                        className="w-24 h-auto rounded shadow"
-                      />
-                      <div className="flex-1">
-                        <strong>Title:</strong> {book.title}
-                        <br />
-                        <em>Author:</em> {book.author}
-                        <br />
-                        <span>Genre: {book.genre}</span>
-                        <br />
-                        <span>Published: {book.publishedYear || "N/A"}</span>
-                        <br />
-                        <span>Rating: {(book.rating || 0).toFixed(1)} / 5</span>
-                        <br />
-                        <span>
-                          Status:{" "}
-                          <span
-                            className={
-                              book.read ? "text-green-400" : "text-red-400"
-                            }
-                          >
-                            {book.read ? "Read" : "Unread"}
-                          </span>
+              {getSortedBooks().map((book) => (
+                <li key={book._id} className="bg-white/10 p-4 rounded shadow">
+                  <div className="flex flex-col md:flex-row gap-4 items-start">
+                    <img
+                      src={book.coverImageUrl || "/default-cover.jpg"}
+                      alt={`Cover of ${book.title}`}
+                      className="w-24 h-auto rounded shadow"
+                    />
+                    <div className="flex-1">
+                      <strong>Title:</strong> {book.title}
+                      <br />
+                      <em>Author:</em> {book.author}
+                      <br />
+                      <span>Genre: {book.genre}</span>
+                      <br />
+                      <span>Published: {book.publishedYear || "N/A"}</span>
+                      <br />
+                      <span>Rating: {(book.rating || 0).toFixed(1)} / 5</span>
+                      <br />
+                      <span>
+                        Status:{" "}
+                        <span
+                          className={
+                            book.read ? "text-green-400" : "text-red-400"
+                          }
+                        >
+                          {book.read ? "Read" : "Unread"}
                         </span>
-                        <br />
-                        <div className="mt-2 flex gap-2 flex-wrap">
-                          {[1, 2, 3, 4, 5].map((r) => (
-                            <button
-                              key={r}
-                              className="bg-yellow-400 text-black font-semibold px-2 py-1 rounded hover:bg-yellow-500 transition"
-                              onClick={() => {
-                                patchBook(book._id, "rating", { rating: r });
-                              }}
-                            >
-                              {r}
-                            </button>
-                          ))}
-
+                      </span>
+                      <br />
+                      <div className="mt-2 flex gap-2 flex-wrap">
+                        {[1, 2, 3, 4, 5].map((r) => (
                           <button
-                            className="bg-black text-white px-3 py-1 rounded hover:bg-gray-800 transition"
-                            onClick={() => patchBook(book._id, "readStatus")}
-                          >
-                            Mark as {book.read ? "Unread" : "Read"}
-                          </button>
-
-                          {/* Edit and Delete buttons */}
-                          <button
-                            className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
-                            onClick={() => openEditModal(book)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+                            key={r}
+                            className="bg-yellow-400 text-black font-semibold px-2 py-1 rounded hover:bg-yellow-500 transition"
                             onClick={() => {
-                              const id = editForm._id || editForm.id;
-                              if (!id) {
-                                alert("Missing _id for delete");
-                                return;
-                              }
-                              deleteBook(id);
-                              setShowDelete(false);
-                              setEditForm({});
+                              patchBook(book._id, "rating", { rating: r });
                             }}
                           >
-                            Delete
+                            {r}
                           </button>
-                        </div>
-                      </div>
-                      <div className="md:w-1/2 w-full bg-white/10 p-3 rounded text-sm text-white border border-white/20">
-                        <h3 className="font-semibold">Summary:</h3>
-                        <p>{book.summary || "No summary available."}</p>
+                        ))}
+
+                        <button
+                          className="bg-black text-white px-3 py-1 rounded hover:bg-gray-800 transition"
+                          onClick={() => patchBook(book._id, "readStatus")}
+                        >
+                          Mark as {book.read ? "Unread" : "Read"}
+                        </button>
+
+                        {/* Edit and Delete buttons */}
+                        <button
+                          className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
+                          onClick={() => openEditModal(book)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+                          onClick={() => {
+                            setEditForm(book); // preload the book into the modal
+                            setShowDelete(true);
+                          }}
+                        >
+                          Delete
+                        </button>
                       </div>
                     </div>
-                  </li>
-                )
-              )}
+                    <div className="md:w-1/2 w-full bg-white/10 p-3 rounded text-sm text-white border border-white/20">
+                      <h3 className="font-semibold">Summary:</h3>
+                      <p>{book.summary || "No summary available."}</p>
+                    </div>
+                  </div>
+                </li>
+              ))}
             </ul>
           </section>
         </section>
