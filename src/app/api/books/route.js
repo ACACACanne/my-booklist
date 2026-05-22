@@ -4,16 +4,54 @@ import Book from "@/models/Book";
 import { verifyToken } from "@/lib/auth";
 import { requireAuth } from "@/lib/authMiddleware";
 
-// GET all books
-export async function GET() {
+export async function GET(req) {
   try {
     await connectDB();
+
     const { user, error } = requireAuth(req);
     if (error) return error;
-    const books = await Book.find({ userID: user.id }).sort({ title: 1 });
+
+    const { searchParams } = new URL(req.url);
+
+    const search = searchParams.get("search") || "";
+    const genre = searchParams.get("genre") || "";
+    const read = searchParams.get("read") || "";
+    const minRating = searchParams.get("minRating") || "";
+
+    const query = { userId: user.id };
+
+    // 🔍 Search (title, author, genre, summary)
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { author: { $regex: search, $options: "i" } },
+        { genre: { $regex: search, $options: "i" } },
+        { summary: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // 🎭 Genre filter
+    if (genre) {
+      query.genre = genre;
+    }
+
+    // 📘 Read/unread filter
+    if (read === "true") query.read = true;
+    if (read === "false") query.read = false;
+
+    // ⭐ Minimum rating filter
+    if (minRating) {
+      query.rating = { $gte: Number(minRating) };
+    }
+
+    const books = await Book.find(query).sort({ title: 1 });
+
     return NextResponse.json(books);
   } catch (err) {
-    return NextResponse.json({ message: err.message }, { status: 500 });
+    return NextResponse.json(
+      { message: "Server error", error: err.message },
+      { status: 500 },
+    );
   }
 }
 
