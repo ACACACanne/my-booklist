@@ -2,17 +2,39 @@
 
 import { useEffect, useState, useCallback } from "react";
 
+// ─────────────────────────────────────────────────────────────
+// MAIN COMPONENT
+// ─────────────────────────────────────────────────────────────
 export default function Page() {
   // ─────────────────────────────────────────────────────────────
-  // Auth & core state
+  // AUTH STATE
   // ─────────────────────────────────────────────────────────────
   const [token, setToken] = useState("");
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+
+  const [loginForm, setLoginForm] = useState({
+    email: "",
+    password: "",
+  });
+
+  const [registerForm, setRegisterForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
+
+  const [authError, setAuthError] = useState("");
+
+  // ─────────────────────────────────────────────────────────────
+  // BOOK STATE
+  // ─────────────────────────────────────────────────────────────
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   // ─────────────────────────────────────────────────────────────
-  // Search, filters, sorting
+  // SEARCH + FILTERS + SORTING
   // ─────────────────────────────────────────────────────────────
   const [search, setSearch] = useState("");
   const [genreFilter, setGenreFilter] = useState("");
@@ -21,7 +43,7 @@ export default function Page() {
   const [sortOption, setSortOption] = useState("title-asc");
 
   // ─────────────────────────────────────────────────────────────
-  // Modals & forms
+  // MODALS FOR CRUD
   // ─────────────────────────────────────────────────────────────
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -55,60 +77,206 @@ export default function Page() {
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   // ─────────────────────────────────────────────────────────────
-  // Helpers
-  // ─────────────────────────────────────────────────────────────
-  const resetAddForm = () => {
-    setAddForm({
-      title: "",
-      author: "",
-      genre: "",
-      publishedYear: "",
-      coverImageUrl: "",
-      purchaseLink: "",
-      readOnlineLink: "",
-      summary: "",
-    });
-  };
-
-  const closeAllModals = () => {
-    setShowAddModal(false);
-    setShowEditModal(false);
-    setShowDeleteModal(false);
-    setEditForm({
-      _id: "",
-      title: "",
-      author: "",
-      genre: "",
-      publishedYear: "",
-      coverImageUrl: "",
-      purchaseLink: "",
-      readOnlineLink: "",
-      summary: "",
-      rating: 0,
-      read: false,
-    });
-    setDeleteTarget(null);
-  };
-
-  // ─────────────────────────────────────────────────────────────
-  // Auth: load token from localStorage
+  // LOAD TOKEN FROM LOCALSTORAGE
   // ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    const stored = window.localStorage.getItem("token");
-    if (stored) setToken(stored);
+    const stored = localStorage.getItem("token");
+    if (stored) {
+      setToken(stored);
+    } else {
+      setShowLoginModal(true);
+    }
   }, []);
 
   const handleLogout = () => {
-    window.localStorage.removeItem("token");
+    localStorage.removeItem("token");
     setToken("");
     setBooks([]);
+    setShowLoginModal(true);
   };
 
   // ─────────────────────────────────────────────────────────────
-  // Fetch books with search + filters + sorting
+  // LOGIN HANDLER
+  // ─────────────────────────────────────────────────────────────
+  const handleLogin = async () => {
+    try {
+      setAuthError("");
+
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(loginForm),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Login failed");
+      }
+
+      localStorage.setItem("token", data.token);
+      setToken(data.token);
+
+      setShowLoginModal(false);
+      setLoginForm({ email: "", password: "" });
+    } catch (err) {
+      setAuthError(err.message);
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // REGISTER HANDLER
+  // ─────────────────────────────────────────────────────────────
+  const handleRegister = async () => {
+    try {
+      setAuthError("");
+
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(registerForm),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Registration failed");
+      }
+
+      localStorage.setItem("token", data.token);
+      setToken(data.token);
+
+      setShowRegisterModal(false);
+      setRegisterForm({ name: "", email: "", password: "" });
+    } catch (err) {
+      setAuthError(err.message);
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // LOGIN MODAL
+  // ─────────────────────────────────────────────────────────────
+  const LoginModal = () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+      <div className="w-full max-w-md bg-slate-950 border border-slate-800 rounded-xl p-6 shadow-xl shadow-black/60">
+        <h2 className="text-xl font-semibold mb-4">Log in</h2>
+
+        {authError && <p className="text-sm text-rose-400 mb-3">{authError}</p>}
+
+        <div className="space-y-3">
+          <input
+            type="email"
+            placeholder="Email"
+            className="w-full px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm"
+            value={loginForm.email}
+            onChange={(e) =>
+              setLoginForm((f) => ({ ...f, email: e.target.value }))
+            }
+          />
+
+          <input
+            type="password"
+            placeholder="Password"
+            className="w-full px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm"
+            value={loginForm.password}
+            onChange={(e) =>
+              setLoginForm((f) => ({ ...f, password: e.target.value }))
+            }
+          />
+        </div>
+
+        <div className="flex justify-between items-center mt-5">
+          <button
+            onClick={handleLogin}
+            className="px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-500 text-sm font-medium"
+          >
+            Log in
+          </button>
+
+          <button
+            onClick={() => {
+              setShowLoginModal(false);
+              setShowRegisterModal(true);
+            }}
+            className="text-sm text-slate-400 hover:text-slate-200"
+          >
+            Create account
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ─────────────────────────────────────────────────────────────
+  // REGISTER MODAL
+  // ─────────────────────────────────────────────────────────────
+  const RegisterModal = () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+      <div className="w-full max-w-md bg-slate-950 border border-slate-800 rounded-xl p-6 shadow-xl shadow-black/60">
+        <h2 className="text-xl font-semibold mb-4">Create account</h2>
+
+        {authError && <p className="text-sm text-rose-400 mb-3">{authError}</p>}
+
+        <div className="space-y-3">
+          <input
+            type="text"
+            placeholder="Name"
+            className="w-full px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm"
+            value={registerForm.name}
+            onChange={(e) =>
+              setRegisterForm((f) => ({ ...f, name: e.target.value }))
+            }
+          />
+
+          <input
+            type="email"
+            placeholder="Email"
+            className="w-full px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm"
+            value={registerForm.email}
+            onChange={(e) =>
+              setRegisterForm((f) => ({ ...f, email: e.target.value }))
+            }
+          />
+
+          <input
+            type="password"
+            placeholder="Password"
+            className="w-full px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm"
+            value={registerForm.password}
+            onChange={(e) =>
+              setRegisterForm((f) => ({ ...f, password: e.target.value }))
+            }
+          />
+        </div>
+
+        <div className="flex justify-between items-center mt-5">
+          <button
+            onClick={handleRegister}
+            className="px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-500 text-sm font-medium"
+          >
+            Register
+          </button>
+
+          <button
+            onClick={() => {
+              setShowRegisterModal(false);
+              setShowLoginModal(true);
+            }}
+            className="text-sm text-slate-400 hover:text-slate-200"
+          >
+            Back to login
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ─────────────────────────────────────────────────────────────
+  // FETCH BOOKS (with search + filters + sorting)
   // ─────────────────────────────────────────────────────────────
   const fetchBooks = useCallback(async () => {
     if (!token) return;
+
     try {
       setLoading(true);
       setError("");
@@ -121,19 +289,16 @@ export default function Page() {
       if (ratingFilter) params.append("minRating", ratingFilter);
 
       const res = await fetch(`/api/books?${params.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || "Failed to fetch books");
-      }
 
       const data = await res.json();
 
-      // client-side sorting for flexibility
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to fetch books");
+      }
+
+      // Client-side sorting
       const sorted = [...data].sort((a, b) => {
         switch (sortOption) {
           case "title-asc":
@@ -168,108 +333,10 @@ export default function Page() {
   }, [fetchBooks]);
 
   // ─────────────────────────────────────────────────────────────
-  // CRUD operations
+  // PATCH HELPERS (rating + read toggle)
   // ─────────────────────────────────────────────────────────────
-  const createBook = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const res = await fetch("/api/books", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(addForm),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to create book");
-      }
-
-      resetAddForm();
-      setShowAddModal(false);
-      fetchBooks();
-    } catch (err) {
-      setError(err.message || "Error creating book");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateBook = async () => {
-    if (!editForm._id) return;
-    try {
-      setLoading(true);
-      setError("");
-
-      const payload = {
-        ...editForm,
-        publishedYear: editForm.publishedYear
-          ? parseInt(editForm.publishedYear, 10)
-          : undefined,
-      };
-
-      const res = await fetch(`/api/books/${editForm._id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to update book");
-      }
-
-      setShowEditModal(false);
-      fetchBooks();
-    } catch (err) {
-      setError(err.message || "Error updating book");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const deleteBook = async () => {
-    if (!deleteTarget?._id) return;
-    try {
-      setLoading(true);
-      setError("");
-
-      const res = await fetch(`/api/books/${deleteTarget._id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to delete book");
-      }
-
-      setShowDeleteModal(false);
-      setDeleteTarget(null);
-      fetchBooks();
-    } catch (err) {
-      setError(err.message || "Error deleting book");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const patchBook = async (id, action, body = null) => {
     try {
-      setError("");
-
       const res = await fetch(`/api/books/${id}?action=${action}`, {
         method: "PATCH",
         headers: {
@@ -279,7 +346,7 @@ export default function Page() {
         body: body ? JSON.stringify(body) : null,
       });
 
-      const data = await res.json().catch(() => ({}));
+      const data = await res.json();
 
       if (!res.ok) {
         throw new Error(data.message || "Failed to update book");
@@ -287,7 +354,7 @@ export default function Page() {
 
       fetchBooks();
     } catch (err) {
-      setError(err.message || "Error updating book");
+      setError(err.message);
     }
   };
 
@@ -300,7 +367,34 @@ export default function Page() {
   };
 
   // ─────────────────────────────────────────────────────────────
-  // UI helpers
+  // RENDER RATING STARS
+  // ─────────────────────────────────────────────────────────────
+  const renderRatingStars = (book) => {
+    const stars = [];
+    const current = book.rating || 0;
+
+    for (let i = 1; i <= 5; i++) {
+      const filled = i <= current;
+
+      stars.push(
+        <button
+          key={i}
+          type="button"
+          onClick={() => updateRating(book, i)}
+          className={`text-lg transition-colors ${
+            filled ? "text-yellow-400" : "text-gray-500 hover:text-yellow-300"
+          }`}
+        >
+          ★
+        </button>,
+      );
+    }
+
+    return <div className="flex gap-1">{stars}</div>;
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  // OPEN EDIT / DELETE MODALS
   // ─────────────────────────────────────────────────────────────
   const openEditModal = (book) => {
     setEditForm({
@@ -316,6 +410,7 @@ export default function Page() {
       rating: book.rating || 0,
       read: !!book.read,
     });
+
     setShowEditModal(true);
   };
 
@@ -324,34 +419,13 @@ export default function Page() {
     setShowDeleteModal(true);
   };
 
-  const renderRatingStars = (book) => {
-    const stars = [];
-    const current = book.rating || 0;
-    for (let i = 1; i <= 5; i++) {
-      const filled = i <= current;
-      stars.push(
-        <button
-          key={i}
-          type="button"
-          onClick={() => updateRating(book, i)}
-          className={`text-lg transition-colors ${
-            filled ? "text-yellow-400" : "text-gray-500 hover:text-yellow-300"
-          }`}
-        >
-          ★
-        </button>,
-      );
-    }
-    return <div className="flex gap-1">{stars}</div>;
-  };
-
   // ─────────────────────────────────────────────────────────────
-  // Render
+  // MAIN UI STARTS HERE
   // ─────────────────────────────────────────────────────────────
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
       <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Header */}
+        {/* HEADER */}
         <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-semibold tracking-tight">
@@ -383,7 +457,7 @@ export default function Page() {
           </div>
         </header>
 
-        {/* Controls: Filters + Sort + Add */}
+        {/* SEARCH + FILTERS */}
         <section className="mb-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <input
@@ -463,7 +537,7 @@ export default function Page() {
           </div>
         </section>
 
-        {/* Error & loading */}
+        {/* ERROR + LOADING */}
         {error && (
           <div className="mb-4 rounded-md border border-rose-500/40 bg-rose-950/40 px-4 py-3 text-sm text-rose-200">
             {error}
@@ -474,7 +548,7 @@ export default function Page() {
           <div className="mb-4 text-sm text-slate-400">Loading books…</div>
         )}
 
-        {/* Book list */}
+        {/* BOOK LIST */}
         <section className="space-y-4">
           {books.length === 0 && !loading ? (
             <p className="text-sm text-slate-400">
@@ -487,10 +561,9 @@ export default function Page() {
                   key={book._id}
                   className="flex flex-col h-full rounded-xl bg-slate-900/80 border border-slate-800/80 shadow-lg shadow-black/40 overflow-hidden"
                 >
-                  {/* Cover */}
+                  {/* COVER */}
                   {book.coverImageUrl && (
                     <div className="h-40 w-full overflow-hidden bg-slate-950">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={book.coverImageUrl}
                         alt={book.title}
@@ -499,7 +572,7 @@ export default function Page() {
                     </div>
                   )}
 
-                  {/* Content */}
+                  {/* CONTENT */}
                   <div className="flex flex-1 flex-col p-4 space-y-3">
                     <div className="flex items-start justify-between gap-2">
                       <div>
@@ -510,6 +583,7 @@ export default function Page() {
                           {book.author || "Unknown author"}
                         </p>
                       </div>
+
                       <span
                         className={`px-2 py-1 rounded-full text-xs font-medium ${
                           book.read
@@ -540,7 +614,7 @@ export default function Page() {
                       </p>
                     )}
 
-                    {/* Links */}
+                    {/* LINKS */}
                     <div className="flex flex-wrap gap-2 text-xs mt-1">
                       {book.purchaseLink && (
                         <a
@@ -552,6 +626,7 @@ export default function Page() {
                           Buy
                         </a>
                       )}
+
                       {book.readOnlineLink && (
                         <a
                           href={book.readOnlineLink}
@@ -564,7 +639,7 @@ export default function Page() {
                       )}
                     </div>
 
-                    {/* Rating + actions */}
+                    {/* RATING + ACTIONS */}
                     <div className="mt-auto pt-2 flex items-center justify-between gap-3">
                       <div className="flex flex-col gap-1">
                         <span className="text-xs text-slate-400">Rating</span>
@@ -588,6 +663,7 @@ export default function Page() {
                           >
                             Edit
                           </button>
+
                           <button
                             type="button"
                             onClick={() => openDeleteModal(book)}
@@ -606,248 +682,183 @@ export default function Page() {
         </section>
       </div>
 
-      {/* ─────────────────────────────────────────────────────────
-          Add Book Modal
-      ───────────────────────────────────────────────────────── */}
+      {/* AUTH MODALS */}
+      {showLoginModal && <LoginModal />}
+      {showRegisterModal && <RegisterModal />}
+
+      {/* ADD BOOK MODAL */}
       {showAddModal && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70">
-          <div className="w-full max-w-lg rounded-xl bg-slate-950 border border-slate-800 shadow-2xl shadow-black/60 p-6 space-y-4">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-xl font-semibold">Add new book</h2>
-              <button
-                onClick={closeAllModals}
-                className="text-slate-400 hover:text-slate-200 text-sm"
-              >
-                ✕
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="w-full max-w-lg bg-slate-950 border border-slate-800 rounded-xl p-6 shadow-xl shadow-black/60 overflow-y-auto max-h-[90vh]">
+            <h2 className="text-xl font-semibold mb-4">Add new book</h2>
+
+            <div className="space-y-3">
+              {Object.keys(addForm).map((key) => (
+                <input
+                  key={key}
+                  type="text"
+                  placeholder={key.replace(/([A-Z])/g, " $1")}
+                  className="w-full px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm"
+                  value={addForm[key]}
+                  onChange={(e) =>
+                    setAddForm((f) => ({ ...f, [key]: e.target.value }))
+                  }
+                />
+              ))}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <input
-                className="px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm"
-                placeholder="Title *"
-                value={addForm.title}
-                onChange={(e) =>
-                  setAddForm((f) => ({ ...f, title: e.target.value }))
-                }
-              />
-              <input
-                className="px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm"
-                placeholder="Author *"
-                value={addForm.author}
-                onChange={(e) =>
-                  setAddForm((f) => ({ ...f, author: e.target.value }))
-                }
-              />
-              <input
-                className="px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm"
-                placeholder="Genre"
-                value={addForm.genre}
-                onChange={(e) =>
-                  setAddForm((f) => ({ ...f, genre: e.target.value }))
-                }
-              />
-              <input
-                className="px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm"
-                placeholder="Published year"
-                value={addForm.publishedYear}
-                onChange={(e) =>
-                  setAddForm((f) => ({ ...f, publishedYear: e.target.value }))
-                }
-              />
-              <input
-                className="px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm md:col-span-2"
-                placeholder="Cover image URL"
-                value={addForm.coverImageUrl}
-                onChange={(e) =>
-                  setAddForm((f) => ({ ...f, coverImageUrl: e.target.value }))
-                }
-              />
-              <input
-                className="px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm md:col-span-2"
-                placeholder="Purchase link"
-                value={addForm.purchaseLink}
-                onChange={(e) =>
-                  setAddForm((f) => ({ ...f, purchaseLink: e.target.value }))
-                }
-              />
-              <input
-                className="px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm md:col-span-2"
-                placeholder="Read online link"
-                value={addForm.readOnlineLink}
-                onChange={(e) =>
-                  setAddForm((f) => ({ ...f, readOnlineLink: e.target.value }))
-                }
-              />
-              <textarea
-                className="px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm md:col-span-2 min-h-[80px]"
-                placeholder="Summary"
-                value={addForm.summary}
-                onChange={(e) =>
-                  setAddForm((f) => ({ ...f, summary: e.target.value }))
-                }
-              />
-            </div>
+            <div className="flex justify-between items-center mt-5">
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch("/api/books", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                      },
+                      body: JSON.stringify(addForm),
+                    });
 
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={closeAllModals}
-                className="px-4 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-sm border border-slate-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={createBook}
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.message);
+
+                    setShowAddModal(false);
+                    setAddForm({
+                      title: "",
+                      author: "",
+                      genre: "",
+                      publishedYear: "",
+                      coverImageUrl: "",
+                      purchaseLink: "",
+                      readOnlineLink: "",
+                      summary: "",
+                    });
+
+                    fetchBooks();
+                  } catch (err) {
+                    setError(err.message);
+                  }
+                }}
                 className="px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-500 text-sm font-medium"
               >
-                Save
+                Add book
+              </button>
+
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="text-sm text-slate-400 hover:text-slate-200"
+              >
+                Cancel
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ─────────────────────────────────────────────────────────
-          Edit Book Modal
-      ───────────────────────────────────────────────────────── */}
+      {/* EDIT BOOK MODAL */}
       {showEditModal && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70">
-          <div className="w-full max-w-lg rounded-xl bg-slate-950 border border-slate-800 shadow-2xl shadow-black/60 p-6 space-y-4">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-xl font-semibold">Edit book</h2>
-              <button
-                onClick={closeAllModals}
-                className="text-slate-400 hover:text-slate-200 text-sm"
-              >
-                ✕
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="w-full max-w-lg bg-slate-950 border border-slate-800 rounded-xl p-6 shadow-xl shadow-black/60 overflow-y-auto max-h-[90vh]">
+            <h2 className="text-xl font-semibold mb-4">Edit book</h2>
+
+            <div className="space-y-3">
+              {Object.keys(editForm)
+                .filter((key) => key !== "_id")
+                .map((key) => (
+                  <input
+                    key={key}
+                    type="text"
+                    placeholder={key.replace(/([A-Z])/g, " $1")}
+                    className="w-full px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm"
+                    value={editForm[key]}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, [key]: e.target.value }))
+                    }
+                  />
+                ))}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <input
-                className="px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm"
-                placeholder="Title *"
-                value={editForm.title}
-                onChange={(e) =>
-                  setEditForm((f) => ({ ...f, title: e.target.value }))
-                }
-              />
-              <input
-                className="px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm"
-                placeholder="Author *"
-                value={editForm.author}
-                onChange={(e) =>
-                  setEditForm((f) => ({ ...f, author: e.target.value }))
-                }
-              />
-              <input
-                className="px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm"
-                placeholder="Genre"
-                value={editForm.genre}
-                onChange={(e) =>
-                  setEditForm((f) => ({ ...f, genre: e.target.value }))
-                }
-              />
-              <input
-                className="px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm"
-                placeholder="Published year"
-                value={editForm.publishedYear}
-                onChange={(e) =>
-                  setEditForm((f) => ({
-                    ...f,
-                    publishedYear: e.target.value,
-                  }))
-                }
-              />
-              <input
-                className="px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm md:col-span-2"
-                placeholder="Cover image URL"
-                value={editForm.coverImageUrl}
-                onChange={(e) =>
-                  setEditForm((f) => ({
-                    ...f,
-                    coverImageUrl: e.target.value,
-                  }))
-                }
-              />
-              <input
-                className="px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm md:col-span-2"
-                placeholder="Purchase link"
-                value={editForm.purchaseLink}
-                onChange={(e) =>
-                  setEditForm((f) => ({
-                    ...f,
-                    purchaseLink: e.target.value,
-                  }))
-                }
-              />
-              <input
-                className="px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm md:col-span-2"
-                placeholder="Read online link"
-                value={editForm.readOnlineLink}
-                onChange={(e) =>
-                  setEditForm((f) => ({
-                    ...f,
-                    readOnlineLink: e.target.value,
-                  }))
-                }
-              />
-              <textarea
-                className="px-3 py-2 rounded-md bg-slate-900 border border-slate-700 text-sm md:col-span-2 min-h-[80px]"
-                placeholder="Summary"
-                value={editForm.summary}
-                onChange={(e) =>
-                  setEditForm((f) => ({ ...f, summary: e.target.value }))
-                }
-              />
-            </div>
+            <div className="flex justify-between items-center mt-5">
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`/api/books/${editForm._id}`, {
+                      method: "PUT",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                      },
+                      body: JSON.stringify(editForm),
+                    });
 
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={closeAllModals}
-                className="px-4 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-sm border border-slate-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={updateBook}
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.message);
+
+                    setShowEditModal(false);
+                    fetchBooks();
+                  } catch (err) {
+                    setError(err.message);
+                  }
+                }}
                 className="px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-500 text-sm font-medium"
               >
                 Save changes
               </button>
+
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-sm text-slate-400 hover:text-slate-200"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ─────────────────────────────────────────────────────────
-          Delete Confirmation Modal
-      ───────────────────────────────────────────────────────── */}
+      {/* DELETE CONFIRMATION MODAL */}
       {showDeleteModal && deleteTarget && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70">
-          <div className="w-full max-w-md rounded-xl bg-slate-950 border border-slate-800 shadow-2xl shadow-black/60 p-6 space-y-4">
-            <h2 className="text-lg font-semibold mb-2">Delete book</h2>
-            <p className="text-sm text-slate-300">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="w-full max-w-sm bg-slate-950 border border-slate-800 rounded-xl p-6 shadow-xl shadow-black/60">
+            <h2 className="text-xl font-semibold mb-4">Delete book</h2>
+
+            <p className="text-sm text-slate-300 mb-4">
               Are you sure you want to delete{" "}
-              <span className="font-semibold">{deleteTarget.title}</span> by{" "}
-              <span className="font-semibold">
-                {deleteTarget.author || "Unknown author"}
-              </span>
-              ? This action cannot be undone.
+              <span className="font-semibold">{deleteTarget.title}</span>?
             </p>
 
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-between items-center">
               <button
-                onClick={closeAllModals}
-                className="px-4 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-sm border border-slate-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={deleteBook}
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`/api/books/${deleteTarget._id}`, {
+                      method: "DELETE",
+                      headers: {
+                        Authorization: `Bearer ${token}`,
+                      },
+                    });
+
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.message);
+
+                    setShowDeleteModal(false);
+                    setDeleteTarget(null);
+                    fetchBooks();
+                  } catch (err) {
+                    setError(err.message);
+                  }
+                }}
                 className="px-4 py-2 rounded-md bg-rose-600 hover:bg-rose-500 text-sm font-medium"
               >
                 Delete
+              </button>
+
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="text-sm text-slate-400 hover:text-slate-200"
+              >
+                Cancel
               </button>
             </div>
           </div>
