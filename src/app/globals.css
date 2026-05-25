@@ -29,6 +29,5 @@ body {
 }
 
 .bg-library {
-  background-image: url('/assets/images/library.jpg');
+  background-image: url("/assets/images/library.jpg");
 }
-
