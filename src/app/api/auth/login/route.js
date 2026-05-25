@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
-import User from "@/models/User";
 import { connectDB } from "@/lib/db";
+import User from "@/models/User";
+import bcrypt from "bcryptjs";
 import { signToken } from "@/lib/auth";
 
 export async function POST(req) {
   try {
     await connectDB();
-    const { email, password } = await req.json();
+    const { username, password } = await req.json();
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ username });
     if (!user) {
       return NextResponse.json(
-        { message: "Invalid credentials" },
+        { message: "Invalid username or password" },
         { status: 400 },
       );
     }
@@ -20,7 +20,7 @@ export async function POST(req) {
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
       return NextResponse.json(
-        { message: "Invalid credentials" },
+        { message: "Invalid username or password" },
         { status: 400 },
       );
     }

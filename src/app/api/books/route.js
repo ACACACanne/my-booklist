@@ -1,86 +1,58 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import Book from "@/models/Book";
-import { verifyToken } from "@/lib/auth";
 import { requireAuth } from "@/lib/authMiddleware";
 
 export async function GET(req) {
   try {
     await connectDB();
 
-    const { user, error } = requireAuth(req);
-    if (error) return error;
+    const user = requireAuth(req);
+    if (user instanceof NextResponse) return user;
 
-    const { searchParams } = new URL(req.url);
-
-    const search = searchParams.get("search") || "";
-    const genre = searchParams.get("genre") || "";
-    const read = searchParams.get("read") || "";
-    const minRating = searchParams.get("minRating") || "";
+    const params = Object.fromEntries(req.nextUrl.searchParams);
 
     const query = { userId: user.id };
 
-    // 🔍 Search (title, author, genre, summary)
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { author: { $regex: search, $options: "i" } },
-        { genre: { $regex: search, $options: "i" } },
-        { summary: { $regex: search, $options: "i" } },
-      ];
+    if (params.search) {
+      query.title = { $regex: params.search, $options: "i" };
     }
 
-    // 🎭 Genre filter
-    if (genre) {
-      query.genre = genre;
-    }
+    if (params.genre) query.genre = params.genre;
+    if (params.read) query.read = params.read === "true";
+    if (params.minRating) query.rating = { $gte: Number(params.minRating) };
 
-    // 📘 Read/unread filter
-    if (read === "true") query.read = true;
-    if (read === "false") query.read = false;
-
-    // ⭐ Minimum rating filter
-    if (minRating) {
-      query.rating = { $gte: Number(minRating) };
-    }
-
-    const books = await Book.find(query).sort({ title: 1 });
+    const books = await Book.find(query);
 
     return NextResponse.json(books);
   } catch (err) {
-    return NextResponse.json(
-      { message: "Server error", error: err.message },
-      { status: 500 },
-    );
+    return NextResponse.json({ message: err.message }, { status: 500 });
   }
 }
 
-// POST create book
 export async function POST(req) {
-  const { error } = requireAuth(req);
-  if (error) return error;
-
   try {
     await connectDB();
 
+    const user = requireAuth(req);
+    if (user instanceof NextResponse) return user;
+
     const body = await req.json();
 
-    if (body.publishedYear === "" || body.publishedYear === null) {
-      delete body.publishedYear;
-    } else if (typeof body.publishedYear === "string") {
-      body.publishedYear = parseInt(body.publishedYear);
+    // Convert publishedYear to number if needed
+    if (body.publishedYear === "") body.publishedYear = null;
+    if (typeof body.publishedYear === "string") {
+      body.publishedYear = Number(body.publishedYear);
     }
 
-    const book = await Book.create(body)({
+    const book = await Book.create({
       ...body,
-      userID: userAgent.userID, // associate book with user
+      userId: user.id,
     });
 
-    return NextResponse.json(
-      { message: "Book created", book },
-      { status: 201 },
-    );
+    return NextResponse.json(book);
   } catch (err) {
+    console.error("POST /api/books ERROR:", err);
     return NextResponse.json({ message: err.message }, { status: 500 });
   }
 }

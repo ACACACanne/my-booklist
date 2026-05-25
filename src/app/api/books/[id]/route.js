@@ -1,122 +1,101 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import Book from "@/models/Book";
-import { verifyToken } from "@/lib/auth";
 import { requireAuth } from "@/lib/authMiddleware";
 
-// GET single book
 export async function GET(req, { params }) {
   try {
     await connectDB();
-    const book = await Book.findById(params.id);
+
+    const user = requireAuth(req);
+    if (user instanceof NextResponse) return user;
+
+    const book = await Book.findOne({
+      _id: params.id,
+      userId: user.id,
+    });
+
     if (!book) {
       return NextResponse.json({ message: "Book not found" }, { status: 404 });
     }
+
     return NextResponse.json(book);
   } catch (err) {
     return NextResponse.json({ message: err.message }, { status: 500 });
   }
 }
 
-// PUT update book
 export async function PUT(req, { params }) {
-  const { error } = requireAuth(req);
-  if (error) return error;
-
   try {
     await connectDB();
 
+    const user = requireAuth(req);
+    if (user instanceof NextResponse) return user;
+
     const body = await req.json();
 
-    if (body.publishedYear === "" || body.publishedYear === null) {
-      delete body.publishedYear;
-    } else if (typeof body.publishedYear === "string") {
-      body.publishedYear = parseInt(body.publishedYear);
-    }
+    const updated = await Book.findOneAndUpdate(
+      { _id: params.id, userId: user.id },
+      body,
+      { new: true },
+    );
 
-    const updated = await Book.findByIdAndUpdate(params.id, body, {
-      new: true,
-      runValidators: true,
-    });
-
-    if (!updated) {
-      return NextResponse.json({ message: "Book not found" }, { status: 404 });
-    }
-
-    return NextResponse.json({ message: "Book updated", book: updated });
+    return NextResponse.json(updated);
   } catch (err) {
     return NextResponse.json({ message: err.message }, { status: 500 });
   }
 }
 
-// PATCH rating / read toggle
 export async function PATCH(req, { params }) {
-  const { error } = requireAuth(req);
-  if (error) return error;
-
   try {
     await connectDB();
 
-    const { searchParams } = new URL(req.url);
-    const action = searchParams.get("action");
+    const user = requireAuth(req);
+    if (user instanceof NextResponse) return user;
 
-    const book = await Book.findById(params.id);
+    const action = req.nextUrl.searchParams.get("action");
+    const body = await req.json().catch(() => ({}));
+
+    // Always fetch book with userId filter
+    const book = await Book.findOne({
+      _id: params.id,
+      userId: user.id,
+    });
+
     if (!book) {
       return NextResponse.json({ message: "Book not found" }, { status: 404 });
-    }
-
-    if (action === "rating") {
-      const body = await req.json();
-      const { rating } = body;
-
-      if (typeof rating !== "number" || rating < 1 || rating > 5) {
-        return NextResponse.json(
-          { message: "Rating must be 1–5" },
-          { status: 400 },
-        );
-      }
-
-      book.rating = rating;
-      await book.save();
-      return NextResponse.json({ message: "Rating updated", book });
     }
 
     if (action === "readStatus") {
       book.read = !book.read;
-      await book.save();
-      return NextResponse.json({
-        message: `Book marked as ${book.read ? "read" : "unread"}`,
-        book,
-      });
     }
 
-    return NextResponse.json({ message: "Invalid action" }, { status: 400 });
+    if (action === "rating") {
+      book.rating = body.rating;
+    }
+
+    await book.save();
+
+    return NextResponse.json(book);
   } catch (err) {
+    console.error("PATCH /api/books/:id ERROR:", err);
     return NextResponse.json({ message: err.message }, { status: 500 });
   }
 }
 
-// DELETE book
 export async function DELETE(req, { params }) {
-  const { user, error } = requireAuth(req);
-  if (error) return error;
-
   try {
     await connectDB();
 
-    const book = await Book.findById(params.id);
-    if (!book) {
-      return NextResponse.json({ message: "Book not found" }, { status: 404 });
-    }
+    const user = requireAuth(req);
+    if (user instanceof NextResponse) return user;
 
-    // ⭐ NEW: Ownership check
-    if (book.userId.toString() !== user.id) {
-      return NextResponse.json({ message: "Not authorized" }, { status: 403 });
-    }
+    await Book.findOneAndDelete({
+      _id: params.id,
+      userId: user.id,
+    });
 
-    await book.deleteOne();
-
-    return NextResponse.json({ message: "Book deleted" });
+    return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json({ message: err.message }, { status: 500 });
   }
